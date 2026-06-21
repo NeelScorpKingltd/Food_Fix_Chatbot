@@ -8,8 +8,9 @@ interface DishCardProps {
   onAddToCart: (dish: Dish) => void;
 }
 
-const getImageForDish = (id: string): string => {
-  switch (id) {
+const getImageForDish = (dish: Dish): string => {
+  if (dish.image) return dish.image;
+  switch (dish.id) {
     case '1': // Classic Burger
       return 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=600&auto=format&fit=crop';
     case '2': // Margherita Pizza
@@ -22,7 +23,7 @@ const getImageForDish = (id: string): string => {
 };
 
 export default function DishCard({ dish, onAddToCart }: DishCardProps) {
-  const imageUrl = getImageForDish(dish.id);
+  const imageUrl = getImageForDish(dish);
 
   return (
     <motion.div
