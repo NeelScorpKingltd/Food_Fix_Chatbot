@@ -6,9 +6,14 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Initialize the standard Gemini Client as requested by the guidelines
+// Initialize the standard Gemini Client supporting both GOOGLE_API_KEY and GEMINI_API_KEY
+const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  console.warn("WARNING: Neither GOOGLE_API_KEY nor GEMINI_API_KEY is defined in environment variables.");
+}
+
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: apiKey,
   httpOptions: {
     headers: {
       'User-Agent': 'aistudio-build',
