@@ -8,6 +8,39 @@ interface DishCardProps {
   onAddToCart: (dish: Dish) => void;
 }
 
+const getTagForDish = (dish: Dish): { text: string; style: string } => {
+  const nameLower = dish.name.toLowerCase();
+
+  if (dish.id === '1') {
+    return { text: '👑 BEST SELLER', style: 'bg-yellow-300 text-zinc-950 border-zinc-900' };
+  }
+  if (nameLower.includes('spicy') || nameLower.includes('nashville') || nameLower.includes('cayenne') || nameLower.includes('chili')) {
+    return { text: '🔥 HOT & SPICY', style: 'bg-red-500 text-white border-zinc-900' };
+  }
+  if (nameLower.includes('truffle') || nameLower.includes('burrata') || nameLower.includes('belgian')) {
+    return { text: '✨ CHEF SIGNATURE', style: 'bg-purple-600 text-white border-zinc-900' };
+  }
+  if (dish.category === 'Pizzas') {
+    return { text: '🍕 WOOD-FIRED', style: 'bg-orange-100 text-orange-950 border-zinc-900' };
+  }
+  if (dish.category === 'Pasta') {
+    return { text: '🍝 AL DENTE', style: 'bg-yellow-100 text-yellow-950 border-zinc-900' };
+  }
+  if (dish.category === 'Greens') {
+    return { text: '🌱 LIVE GREENS', style: 'bg-green-100 text-green-950 border-zinc-900' };
+  }
+  if (dish.category === 'Desserts') {
+    return { text: '🍮 SWEET TOOTH', style: 'bg-pink-100 text-pink-950 border-zinc-900' };
+  }
+  if (dish.category === 'Drinks') {
+    return { text: '🍹 COOLING', style: 'bg-cyan-100 text-cyan-950 border-zinc-900' };
+  }
+  return { 
+    text: dish.category ? dish.category.toUpperCase() : 'DELICIOUS', 
+    style: 'bg-zinc-100 text-zinc-950 border-zinc-900' 
+  };
+};
+
 const getImageForDish = (dish: Dish): string => {
   if (dish.image) return dish.image;
   switch (dish.id) {
@@ -24,6 +57,7 @@ const getImageForDish = (dish: Dish): string => {
 
 export default function DishCard({ dish, onAddToCart }: DishCardProps) {
   const imageUrl = getImageForDish(dish);
+  const tag = getTagForDish(dish);
 
   return (
     <motion.div
@@ -39,8 +73,15 @@ export default function DishCard({ dish, onAddToCart }: DishCardProps) {
           src={imageUrl}
           alt={dish.name}
           referrerPolicy="no-referrer"
-          className="h-full w-full object-cover hover:scale-105 transition-transform duration-500"
+          className="h-full w-full object-cover hover:scale-105 transition-transform duration-550 ease-out"
+          loading="lazy"
         />
+        
+        {/* Dynamic Tag overlaying the image */}
+        <div className={`absolute top-4 left-4 font-black px-2.5 py-1 border-2 border-zinc-900 rounded-xl shadow-[2px_2px_0px_0px_rgba(24,24,27,1)] text-[10px] tracking-wider uppercase select-none ${tag.style}`}>
+          {tag.text}
+        </div>
+
         <div className="absolute top-4 right-4 bg-yellow-300 text-zinc-900 font-black px-3.5 py-1.5 border-2.5 border-zinc-900 rounded-xl rotate-3 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] select-none text-base">
           ${dish.price.toFixed(2)}
         </div>
@@ -50,7 +91,7 @@ export default function DishCard({ dish, onAddToCart }: DishCardProps) {
       <div className="p-5 flex flex-col justify-between flex-grow gap-4">
         <div className="space-y-1.5">
           <h3 className="font-extrabold text-xl text-zinc-900 uppercase tracking-tight line-clamp-1">{dish.name}</h3>
-          <p className="text-zinc-600 text-sm leading-relaxed line-clamp-2">{dish.description}</p>
+          <p className="text-zinc-600 text-sm leading-relaxed line-clamp-2 h-10">{dish.description}</p>
         </div>
 
         <button
@@ -64,4 +105,3 @@ export default function DishCard({ dish, onAddToCart }: DishCardProps) {
     </motion.div>
   );
 }
-

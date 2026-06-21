@@ -69,9 +69,12 @@ export default function Chatbot() {
       }
 
       if (response.ok && data) {
-        // Human escalation check
-        const textLower = (data.text || "").toLowerCase();
-        const isEscalated = textLower.includes("escalat") || textLower.includes("human agent") || textLower.includes("support team");
+        // Use backend's explicit isEscalated value. Fallback to a precise check only if undefined.
+        const isEscalated = typeof data.isEscalated === 'boolean'
+          ? data.isEscalated
+          : ((data.text || "").toLowerCase().includes("routing you to a human") || 
+             (data.text || "").toLowerCase().includes("transferring you to a human agent") ||
+             (data.text || "").toLowerCase().includes("escalating to our human support team"));
 
         setMessages((prev) => [
           ...prev,
@@ -168,7 +171,7 @@ export default function Chatbot() {
                   {/* Escalated/Human support tag */}
                   {msg.isEscalated && (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-yellow-100 border-2 border-zinc-900 text-zinc-900 font-extrabold text-[10px] uppercase rounded-full shadow-[2px_2px_0px_0px_rgba(24,24,27,1)] mt-1 animate-pulse">
-                      <AlertCircle size={10} className="stroke-[3px]" /> Escaped to Human Agent
+                      <AlertCircle size={10} className="stroke-[3px]" /> Escalated to Human Agent
                     </span>
                   )}
                 </div>

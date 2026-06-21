@@ -76,27 +76,87 @@ function getAI(): GoogleGenAI {
   return aiInstance;
 }
 
+// Helper to parse the structured bot response securely
+interface BotResult {
+  text: string;
+  isEscalated: boolean;
+}
+
+function parseBotResult(rawText: string, fallbackText: string): BotResult {
+  try {
+    // Clean string case where markdown json fence is returned despite instructions
+    let jsonStr = rawText.trim();
+    if (jsonStr.startsWith("```json")) {
+      jsonStr = jsonStr.substring(7);
+    }
+    if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.substring(3);
+    }
+    if (jsonStr.endsWith("```")) {
+      jsonStr = jsonStr.substring(0, jsonStr.length - 3);
+    }
+    jsonStr = jsonStr.trim();
+    
+    const parsed = JSON.parse(jsonStr);
+    return {
+      text: parsed.text || fallbackText,
+      isEscalated: typeof parsed.isEscalated === "boolean" ? parsed.isEscalated : false,
+    };
+  } catch (e) {
+    // Fallback parsing of raw text if any error occurs
+    return {
+      text: rawText || fallbackText,
+      isEscalated: rawText.toLowerCase().includes("escalat to a human") || rawText.toLowerCase().includes("transfer you to a human agent"),
+    };
+  }
+}
+
 async function handlePolicyQuery(query: string, history_text: string) {
-  const prompt = `You are an helpful, professional Assistant for a food ordering Business. Be Courteous and empathetic. 
-Here is the Customer query - ${query}. Strictily follow the guardrails which are - ${guards}. 
-Use the following Coversation history-${history_text}.
-Use the Policy Document to answer the query - ${policy_document}`;
+  const prompt = `You are a helpful, professional customer support Assistant for a food ordering business called "Food Fix". Be Courteous and empathetic. 
+Here is the Customer query - ${query}. Strictly follow the guardrails which are - ${guards}. 
+Use the following Conversation history-${history_text}.
+Use the Policy Document to answer the query - ${policy_document}.
+
+In your response:
+1. Always be helpful, clear, and address the customer's question directly.
+2. If AND ONLY IF the user query meets the specific triggers in the "Human Escalation Policy" (such as explicitly asking for a human agent, demanding live order tracking, or payment verification), then route the customer to a human agent by setting "isEscalated" to true, and state in your message that you are routing them to a human agent now.
+3. If they are just asking a general question about our policies (e.g., refund times, coupon validity), answer it accurately as per the policy document, and set "isEscalated" to false. Do NOT escalate general Q&A queries.`;
 
   const response = await getAI().models.generateContent({
     model: "gemini-3.5-flash",
     contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          text: {
+            type: "STRING",
+            description: "Friendly customer support response. Do not use phrases like 'Support Team' or 'Human Agent' in general Q&A unless you are actually hand-shifting to a human support agent because the user asked or a policy trigger is met."
+          },
+          isEscalated: {
+            type: "BOOLEAN",
+            description: "Explicitly set to true only when you are transferring the customer to a real human agent based on the Escalation Policy triggers. Otherwise false."
+          }
+        },
+        required: ["text", "isEscalated"]
+      }
+    }
   });
 
-  return response.text || "I apologize, but I could not formulate a response. Please try again.";
+  return response.text || JSON.stringify({ text: "I apologize, but I could not formulate a response. Please try again.", isEscalated: false });
 }
 
 async function handleFoodQualityQuery(query: string, history_text: string, imageBase64Data: string, mimeType: string) {
-  const prompt = `You're a helpful assistant of a food service company called food fix,
- please respond to user's query, be courteous.
- Use the following policy document -
- ${policy_document}.
- Check the food quality and if the food quality is bad- food is burnt or there is mould then tell him that refund is being processed and also apologize. If the food is NOT corrupt (meaning it does not look burnt and has no mould), explicitly state that it does not seem to be corrupt and escalate to a human agent as per the policy.
- Here is the query - ${query}.
+  const prompt = `You're a helpful, polite assistant for a food delivery service called "Food Fix".
+Use the following policy document to evaluate the quality image -
+${policy_document}.
+
+Check the food quality image carefully:
+- If the food is NOT corrupt (meaning it does NOT look clearly burnt and has NO visible mould/spoilage), then explain to the customer that based on the image, the item does not appear to be corrupt or defective. Explicitly state that you are escalating this to our human support team now for a secondary evaluation, and set "isEscalated" to true in your JSON response.
+- If the food looks. corrupt (such as clearly burnt, has mould, or is spoiled), say that you are extremely sorry about this, a refund has been approved and is being processed, and set "isEscalated" to false in your JSON response since we resolved/refunded.
+
+Here is the query - ${query}.
 Use the following historical conversation -
 ${history_text}`;
 
@@ -112,9 +172,26 @@ ${history_text}`;
     contents: [
       { parts: [imagePart, { text: prompt }] }
     ],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          text: {
+            type: "STRING",
+            description: "Your courteous customer support response text."
+          },
+          isEscalated: {
+            type: "BOOLEAN",
+            description: "Set to true only if you are transferring the user to a human agent because the food does not look corrupt or they demand manual assistance. Set to false if you handled and resolved/refunded."
+          }
+        },
+        required: ["text", "isEscalated"]
+      }
+    }
   });
 
-  return response.text || "Unable to analyze the image.";
+  return response.text || JSON.stringify({ text: "Unable to analyze the image.", isEscalated: false });
 }
 
 // Vercel Serverless Function Handler
@@ -194,7 +271,8 @@ Guardrail: You are a food business chatbot, be empathetic but dont answer any un
       });
       return res.status(200).json({
         text: response.text || "I'm sorry, I'm only able to assist with Food Fix order policies and food quality inquiries.",
-        category: "other"
+        category: "other",
+        isEscalated: false
       });
     }
 
@@ -204,9 +282,11 @@ Guardrail: You are a food business chatbot, be empathetic but dont answer any un
         const mimeType = parts[0].split(":")[1].split(";")[0];
         const base64Data = parts[1];
 
-        const botResponse = await handleFoodQualityQuery(query, formattedHistory, base64Data, mimeType);
+        const rawResponse = await handleFoodQualityQuery(query, formattedHistory, base64Data, mimeType);
+        const parsed = parseBotResult(rawResponse, "Unable to analyze the image.");
         return res.status(200).json({
-          text: botResponse,
+          text: parsed.text,
+          isEscalated: parsed.isEscalated,
           category: "food_quality",
           hasImageAnalyzed: true
         });
@@ -214,14 +294,17 @@ Guardrail: You are a food business chatbot, be empathetic but dont answer any un
         return res.status(200).json({
           text: "I am really sorry to hear about the food quality issue. Please upload a clear photo of the food using the upload button below so I can verify if it is burnt or mouldy, or escalate to our human team.",
           category: "food_quality",
+          isEscalated: false,
           needsImage: true
         });
       }
     }
 
-    const botResponse = await handlePolicyQuery(query, formattedHistory);
+    const rawResponse = await handlePolicyQuery(query, formattedHistory);
+    const parsed = parseBotResult(rawResponse, "I apologize, but I could not formulate a response. Please try again.");
     return res.status(200).json({
-      text: botResponse,
+      text: parsed.text,
+      isEscalated: parsed.isEscalated,
       category: "policy"
     });
 

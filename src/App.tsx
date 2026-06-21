@@ -116,6 +116,86 @@ const DISHES: Dish[] = [
     category: 'Drinks',
     image: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?q=80&w=600&auto=format&fit=crop'
   },
+  {
+    id: '14',
+    name: 'Crispy Nashville Hot Chicken',
+    price: 13.99,
+    description: 'Golden southern-fried chicken breast dipped in a fiery cayenne glaze, with juicy pickles, vinegar-slaw, and seasoned dynamic chef sauce.',
+    category: 'Burgers',
+    image: 'https://images.unsplash.com/photo-1627662236973-4f8259fa2441?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: '15',
+    name: 'Avocado Green Goddess Burger',
+    price: 13.49,
+    description: 'Flame-grilled organic turkey patty topped with thick avocados, house-blended green goddess pesto cream, and crisp watercress leaf mix.',
+    category: 'Burgers',
+    image: 'https://images.unsplash.com/photo-1525059696034-4967a8e1dca2?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: '16',
+    name: 'Wild Mushroom & Truffle Pizza',
+    price: 16.99,
+    description: 'White garlic base loaded with dynamic sautéed hand-torn portobello, cremini, goat cheese rounds, roasted garlic, and cold-pressed truffle oil.',
+    category: 'Pizzas',
+    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: '17',
+    name: 'Smoked Barbecue Chicken Pizza',
+    price: 15.99,
+    description: 'Tangy wood-smoke BBQ base, hand-shredded slow-cooked chicken, roasted purple onion rings, smoked gouda melt, and fresh coriander leaves.',
+    category: 'Pizzas',
+    image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: '18',
+    name: 'Creamy Sun-Dried Tomato Penne',
+    price: 14.49,
+    description: 'Rich and velvety basil-pink sauce over al dente ridge penne, bursting with Italian sun-dried tomatoes, wilted baby kale, and creamy feta crumbs.',
+    category: 'Pasta',
+    image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: '19',
+    name: 'Crispy Calamari Fritti',
+    price: 12.49,
+    description: 'Salt-and-pepper dusted crispy calamari rings served with our legendary fire gochujang-chili aioi and charred lemon cheeks.',
+    category: 'Starters',
+    image: 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: '20',
+    name: 'Sweet Potato Frites & Chili Aioli',
+    price: 7.99,
+    description: 'Thick hand-cut oven frites dusted with sweet paprika-brown sugar seasoning, served with a double-sized pot of spicy chipotle dip.',
+    category: 'Sides',
+    image: 'https://images.unsplash.com/photo-1585109649139-366815a0d713?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: '21',
+    name: 'Warm Apple Berry Crumble Pie',
+    price: 8.99,
+    description: 'Baked cast-iron sweet apples and dark summer blackberries, hidden underneath a crunchy toasted oat dynamic crust, topped with real vanilla dust.',
+    category: 'Desserts',
+    image: 'https://images.unsplash.com/photo-1621510456681-23a23cfb5f57?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: '22',
+    name: 'Mango Passion Fruit Mocktail',
+    price: 6.49,
+    description: 'Double-shaken sweet Philippine yellow mango juice, wild purple passionfruit pulp, dynamic lime-tonic splash, and raw wild sugarcane syrup.',
+    category: 'Drinks',
+    image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: '23',
+    name: 'Salted Caramel Cold Brew',
+    price: 5.49,
+    description: 'Twenty-four hour steeped artisanal organic drop cold brew coffee, topped with sea-salt sweet cream cap and hand-drizzled toffee rivers.',
+    category: 'Drinks',
+    image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?q=80&w=600&auto=format&fit=crop'
+  }
 ];
 
 const CATEGORIES = ['All', 'Burgers', 'Pizzas', 'Pasta', 'Starters', 'Sides', 'Greens', 'Desserts', 'Drinks'];
@@ -138,6 +218,18 @@ export default function App() {
 
   const removeFromCart = (id: string) => {
     setCartItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const updateQuantity = (id: string, delta: number) => {
+    setCartItems(prev => {
+      return prev.map(item => {
+        if (item.id === id) {
+          const newQty = item.quantity + delta;
+          return newQty > 0 ? { ...item, quantity: newQty } : null;
+        }
+        return item;
+      }).filter((item): item is CartItem => item !== null);
+    });
   };
 
   const filteredDishes = DISHES.filter(dish => {
@@ -297,7 +389,12 @@ export default function App() {
       </main>
 
       {isCartOpen && (
-        <Cart cartItems={cartItems} onRemoveFromCart={removeFromCart} onCheckout={() => setIsCartOpen(false)} />
+        <Cart
+          cartItems={cartItems}
+          onRemoveFromCart={removeFromCart}
+          onUpdateQuantity={updateQuantity}
+          onCheckout={() => setIsCartOpen(false)}
+        />
       )}
       <Chatbot />
     </div>
