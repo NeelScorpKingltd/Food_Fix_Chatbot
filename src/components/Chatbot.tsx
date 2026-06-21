@@ -60,9 +60,15 @@ export default function Chatbot() {
         }),
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        // Response was not JSON (could be direct text or HTML error page)
+      }
 
-      if (response.ok) {
+      if (response.ok && data) {
         // Human escalation check
         const textLower = (data.text || "").toLowerCase();
         const isEscalated = textLower.includes("escalat") || textLower.includes("human agent") || textLower.includes("support team");
@@ -76,10 +82,11 @@ export default function Chatbot() {
           },
         ]);
       } else {
+        const errorDetails = data ? (data.details || data.error) : `HTTP ${response.status}: ${responseText.slice(0, 150)}`;
         setMessages((prev) => [
           ...prev,
           {
-            text: `Support Service Error: ${data.details || data.error || "Please try again later."}`,
+            text: `Support Service Error: ${errorDetails || "We encountered an unexpected response from the support model."}`,
             isBot: true,
           },
         ]);
@@ -88,7 +95,7 @@ export default function Chatbot() {
       setMessages((prev) => [
         ...prev,
         {
-          text: "Technical Connection Failed. Please make sure the service is running and try again.",
+          text: `Technical Connection Failed: ${err.message || err || "Please make sure your server is booted and check your API keys."}`,
           isBot: true,
         },
       ]);

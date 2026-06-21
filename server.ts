@@ -6,20 +6,26 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Initialize the standard Gemini Client supporting both GOOGLE_API_KEY and GEMINI_API_KEY
-const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
-if (!apiKey) {
-  console.warn("WARNING: Neither GOOGLE_API_KEY nor GEMINI_API_KEY is defined in environment variables.");
-}
+// Helper to get or initialize GoogleGenAI client lazily
+let aiInstance: GoogleGenAI | null = null;
 
-const ai = new GoogleGenAI({
-  apiKey: apiKey,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+function getAI(): GoogleGenAI {
+  if (!aiInstance) {
+    const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("API key is missing: Please specify GOOGLE_API_KEY or GEMINI_API_KEY in your env file or the Settings panel inside Google AI Studio.");
     }
+    aiInstance = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
-});
+  return aiInstance;
+}
 
 const app = express();
 const PORT = 3000;
@@ -87,7 +93,7 @@ Here is the Customer query - ${query}. Strictily follow the guardrails which are
 Use the following Coversation history-${history_text}.
 Use the Policy Document to answer the query - ${policy_document}`;
 
-  const response = await ai.models.generateContent({
+  const response = await getAI().models.generateContent({
     model: "gemini-3.5-flash",
     contents: prompt,
   });
@@ -113,7 +119,7 @@ ${history_text}`;
     },
   };
 
-  const response = await ai.models.generateContent({
+  const response = await getAI().models.generateContent({
     model: "gemini-3.5-flash",
     contents: [
       { parts: [imagePart, { text: prompt }] }
@@ -153,7 +159,7 @@ Return only a single JSON state like:
 Do not output any reasoning outside JSON.
 `;
 
-    const classificationResponse = await ai.models.generateContent({
+    const classificationResponse = await getAI().models.generateContent({
       model: "gemini-3.5-flash",
       contents: classificationPrompt,
       config: {
@@ -182,7 +188,7 @@ Do not output any reasoning outside JSON.
 User Query: "${query}"
 Guardrail: You are a food business chatbot, be empathetic but dont answer any unrelated questions, Keep the response short in this case. Do not generate or falsify information.
 `;
-      const response = await ai.models.generateContent({
+      const response = await getAI().models.generateContent({
         model: "gemini-3.5-flash",
         contents: rejectPrompt,
       });
